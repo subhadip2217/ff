@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survival Fire - 2D Battle Royale</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f0f1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #fff;
+    overflow: hidden;
+  }
+  #gameContainer { position: relative; }
+  canvas {
+    display: block;
+    background: #1a2a1a;
+    border: 2px solid #333;
+    cursor: crosshair;
+    border-radius: 4px;
+  }
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hud-box {
+    background: rgba(0,0,0,0.6);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .hud-box span { color: #4fc3f7; font-weight: bold; }
+  #healthBar {
+    width: 200px; height: 16px;
+    background: rgba(255,0,0,0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  #healthFill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff4444, #44ff44);
+    transition: width 0.3s;
+  }
+  #zoneInfo { text-align: center; }
+  #killsInfo { text-align: right; }
+
+  #overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    border-radius: 4px;
+  }
+  #overlay h1 {
+    font-size: 42px;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, #ff6b35, #f7c948);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 30px rgba(255,107,53,0.5);
+  }
+  #overlay p { font-size: 16px; color: #aaa; margin-bottom: 20px; max-width: 400px; text-align: center; line-height: 1.6; }
+  #overlay .controls { font-size: 14px; color: #888; margin-bottom: 30px; }
+  #overlay .controls span { color: #4fc3f7; }
+  #startBtn, #restartBtn {
+    background: linear-gradient(45deg, #ff6b35, #f7c948);
+    color: #1a1a2e;
+    border: none;
+    padding: 14px 40px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  #startBtn:hover, #restartBtn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px rgba(255,107,53,0.5);
+  }
+  #gameResult { font-size: 28px; margin-bottom: 10px; }
+  .win { color: #44ff44; }
+  .lose { color: #ff4444; }
+  #finalStats { font-size: 16px; color: #aaa; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="960" height="640"></canvas>
+
+  <div id="hud">
+    <div class="hud-box">
+      <div>HEALTH</div>
+      <div id="healthBar"><div id="healthFill" style="width:100%"></div></div>
+    </div>
+    <div class="hud-box" id="zoneInfo">
+      <div>SAFE ZONE</div>
+      <div>Shrinks in: <span id="zoneTimer">30</span>s</div>
+    </div>
+    <div class="hud-box" id="killsInfo">
+      <div>KILLS: <span id="killCount">0</span></div>
+      <div>ALIVE: <span id="aliveCount">10</span></div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <h1>🔥 SURVIVAL FIRE 🔥</h1>
+    <p>A fast-paced 2D battle royale shooter. Be the last one standing!</p>
+    <div class="controls">
+      <b>Move</b>: <span>W A S D</span> &nbsp;|&nbsp;
+      <b>Aim</b>: <span>Mouse</span> &nbsp;|&nbsp;
+      <b>Shoot</b>: <span>Click / Spacebar</span> &nbsp;|&nbsp;
+      <b>Sprint</b>: <span>Shift</span>
+    </div>
+    <button id="startBtn">PLAY</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
