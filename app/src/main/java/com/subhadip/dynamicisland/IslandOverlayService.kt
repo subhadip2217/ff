@@ -4,6 +4,7 @@ import android.app.*
 import android.content.*
 import android.content.pm.ServiceInfo
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.media.AudioManager
@@ -38,6 +39,9 @@ class IslandOverlayService : Service() {
     private var detailView: TextView? = null
     private var detailPanel: LinearLayout? = null
     private var params: WindowManager.LayoutParams? = null
+    private var mediaArtworkView: ImageView? = null
+    private var mediaTitleView: TextView? = null
+    private var mediaPlayView: TextView? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -135,10 +139,13 @@ class IslandOverlayService : Service() {
         detailPanel!!.addView(makeVolumeRow())
         container.addView(detailPanel)
         container.setOnClickListener { toggleExpanded() }
+        container.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE && expanded) { collapse(); true } else false
+        }
         params = WindowManager.LayoutParams(dp(210), WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; y = dp(24) }
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; y = cameraCutoutOffset() }
         try {
             wm.addView(container, params)
             root = container
@@ -147,14 +154,27 @@ class IslandOverlayService : Service() {
     }
 
     private fun makeMediaRow(): LinearLayout {
-        val row = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
+        val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; orientation = LinearLayout.HORIZONTAL }
+        val artwork = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(42), dp(42))
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.rgb(35,35,40)); cornerRadius = dp(9).toFloat() }
+        }
+        mediaArtworkView = artwork
+        row.addView(artwork)
+        val labels = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(9), 0, dp(4), 0) }
+        mediaTitleView = TextView(this).apply { text = "Nothing playing"; textSize = 11f; setTextColor(Color.WHITE); maxLines = 1 }
+        val artist = TextView(this).apply { text = "Start music on your phone"; textSize = 10f; setTextColor(Color.LTGRAY); maxLines = 1 }
+        labels.addView(mediaTitleView); labels.addView(artist)
+        row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(controlButton("‹") { mediaController?.transportControls?.skipToPrevious() })
-        row.addView(controlButton("▶ / Ⅱ") {
+        mediaPlayView = controlButton("▶") {
             val state = mediaController?.playbackState?.state
             if (state == android.media.session.PlaybackState.STATE_PLAYING) mediaController?.transportControls?.pause()
             else mediaController?.transportControls?.play()
             setupMedia()
-        })
+        }
+        row.addView(mediaPlayView)
         row.addView(controlButton("›") { mediaController?.transportControls?.skipToNext() })
         return row
     }
@@ -184,14 +204,28 @@ class IslandOverlayService : Service() {
         setOnClickListener { click() }
     }
 
-    private fun toggleExpanded() {
-        expanded = !expanded
-        detailPanel?.visibility = if (expanded) View.VISIBLE else View.GONE
-        val lp = params ?: return
-        lp.width = dp(if (expanded) 300 else 210)
-        root?.let { try { wm.updateViewLayout(it, lp) } catch (_: Exception) {} }
+    private fun toggleExpanded() { if (expanded) collapse() else expand() }
+    private fun expand() {
+        expanded = true
+        detailPanel?.visibility = View.VISIBLE
+        params?.let { it.width = dp(310); try { root?.let { v -> wm.updateViewLayout(v, it) } } catch (_: Exception) {} }
         refresh()
-        root?.animate()?.scaleX(if (expanded) 1.025f else 1f)?.scaleY(if (expanded) 1.025f else 1f)?.setDuration(180)?.setInterpolator(DecelerateInterpolator())?.start()
+        root?.animate()?.scaleX(1.02f)?.scaleY(1.02f)?.setDuration(220)?.setInterpolator(DecelerateInterpolator())?.start()
+    }
+    private fun collapse() {
+        expanded = false
+        detailPanel?.visibility = View.GONE
+        params?.let { it.width = dp(194); try { root?.let { v -> wm.updateViewLayout(v, it) } } catch (_: Exception) {} }
+        root?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(200)?.setInterpolator(DecelerateInterpolator())?.start()
+    }
+    private fun cameraCutoutOffset(): Int {
+        return try {
+            if (Build.VERSION.SDK_INT >= 30) {
+                val cutout = wm.currentWindowMetrics.windowInsets.displayCutout
+                val rect = cutout?.boundingRects?.firstOrNull()
+                if (rect != null) (rect.centerY() - dp(22)).coerceAtLeast(0) else dp(4)
+            } else dp(4)
+        } catch (_: Exception) { dp(4) }
     }
 
     private fun refresh() {
@@ -201,6 +235,12 @@ class IslandOverlayService : Service() {
             else -> "◈  DYNAMIC ISLAND"
         }
         detailView?.text = latestTitle + "\n" + latestText + "\nBattery " + battery + "% · " + (if (charging) "Charging" else "On battery")
+        try {
+            val md = mediaController?.metadata
+            mediaTitleView?.text = md?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "Nothing playing"
+            mediaArtworkView?.setImageBitmap(md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART) ?: md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART))
+            mediaPlayView?.text = if (mediaController?.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING) "Ⅱ" else "▶"
+        } catch (_: Exception) {}
     }
     private fun pulse() {
         root?.animate()?.scaleX(1.07f)?.scaleY(1.07f)?.setDuration(130)?.withEndAction {
